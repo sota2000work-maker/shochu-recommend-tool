@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>焼酎おすすめ提示ツール</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="焼酎おすすめ">
+<meta name="theme-color" content="#1c3150">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<style>
+  /* 変数名はウイスキー版のものを流用している（将来の統合時に差分を小さくするため）。色は藍色系 */
+  :root {
+    --whisky: #2c4a6e;
+    --whisky-dark: #1c3150;
+    --amber: #6f93bb;
+    --amber-soft: #dde7f2;
+    --cream: #f5f7fa;
+    --paper: #ffffff;
+    --ink: #1f2933;
+    --ink-soft: #5f6b78;
+    --border: #d9e1ea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Hiragino Kaku Gothic ProN", sans-serif;
+    max-width: 900px; margin: 0 auto; padding: 14px 12px 32px;
+    background: var(--cream); color: var(--ink); line-height: 1.5;
+  }
+  h1, h2, h3 { font-family: "Hiragino Mincho ProN", Georgia, serif; font-weight: 600; letter-spacing: .02em; }
+  h1 { font-size: 21px; margin: 4px 0 14px; color: var(--whisky-dark); text-align: center; }
+  fieldset { margin-bottom: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--paper); }
+  legend { font-weight: 600; padding: 0 8px; color: var(--whisky); font-size: 14px; }
+  label { display: inline-block; margin: 6px 10px 6px 0; padding: 4px 2px; }
+  label input[type="checkbox"] { width: 18px; height: 18px; vertical-align: middle; margin-right: 4px; accent-color: var(--whisky); }
+  input[type="text"], input[type="password"] {
+    font-size: 16px; padding: 9px 10px; width: 100%; margin: 4px 0 8px;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--paper); color: var(--ink);
+  }
+  input:focus { outline: 2px solid var(--amber-soft); border-color: var(--amber); }
+  button { font-size: 16px; padding: 12px 20px; margin-top: 4px; border-radius: 10px; cursor: pointer; transition: transform .05s ease, opacity .15s ease; }
+  button:active { transform: scale(0.98); }
+  button.primary { width: 100%; background: var(--whisky); color: #fff; border: none; box-shadow: 0 2px 6px rgba(44,74,110,0.25); }
+  button.secondary { background: var(--paper); border: 1px solid var(--whisky); color: var(--whisky); }
+  .tabBar { display: flex; gap: 6px; margin-bottom: 14px; position: sticky; top: 0; background: var(--cream); padding: 10px 0 6px; z-index: 5; }
+  .tabBtn { flex: 1; padding: 10px 4px; font-size: 13px; border: 1px solid var(--border); background: var(--paper); color: var(--ink-soft); border-radius: 999px; font-weight: 600; transition: all .15s ease; }
+  .tabBtn.active { background: var(--whisky); color: #fff; border-color: var(--whisky); box-shadow: 0 2px 6px rgba(44,74,110,0.25); }
+  .tabPanel { display: none; }
+  .tabPanel.active { display: block; animation: fadeIn .2s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
+  .card {
+    border: 1px solid var(--border); border-left: 4px solid var(--amber);
+    border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; background: var(--paper);
+    box-shadow: 0 1px 3px rgba(43,36,32,0.06), 0 1px 2px rgba(43,36,32,0.04);
+  }
+  .card h3 { margin: 0 0 6px 0; font-size: 16px; display: flex; align-items: center; gap: 6px; }
+  .score {
+    font-weight: 700; color: var(--whisky-dark); font-size: 12px; background: var(--amber-soft);
+    padding: 2px 9px; border-radius: 999px; white-space: nowrap; margin-left: auto;
+  }
+  .meta { color: var(--ink-soft); font-size: 13px; }
+  .thumb { float: right; width: 72px; height: 96px; object-fit: contain; margin: 0 0 6px 10px; background: #fff; border-radius: 8px; }
+  .tag {
+    display: inline-block; background: var(--cream); border: 1px solid var(--border); color: var(--ink);
+    border-radius: 999px; padding: 3px 10px; margin: 2px 4px 2px 0; font-size: 12px; cursor: pointer;
+  }
+  .tag.glossary { border-color: var(--amber); }
+  .highlight {
+    margin: 8px 0; font-size: 14px; color: var(--whisky-dark); background: var(--amber-soft);
+    padding: 8px 10px; border-radius: 8px; border-left: 3px solid var(--amber);
+  }
+  .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--ink-soft); letter-spacing: .02em; }
+  .caution { color: #8a3b1c; font-size: 12px; background: #fbeee5; padding: 6px 8px; border-radius: 6px; margin-top: 6px; }
+  .muted { color: var(--ink-soft); font-size: 13px; }
+  .syncBar { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--ink-soft); margin-bottom: 6px; }
+  .overlay { position: fixed; inset: 0; background: rgba(43,36,32,0.45); display: flex; align-items: flex-end; z-index: 20; backdrop-filter: blur(1px); }
+  .hidden { display: none; }
+  .overlay.hidden { display: none; }
+  .sheet { background: var(--paper); width: 100%; max-height: 85vh; overflow-y: auto; border-radius: 16px 16px 0 0; padding: 18px; box-shadow: 0 -4px 20px rgba(0,0,0,0.15); }
+  .sheet .closeBtn { width: 100%; margin-top: 12px; }
+  #adminGate { margin-bottom: 12px; }
+  #adminBody { display: none; }
+  .msg { padding: 9px 11px; border-radius: 8px; margin: 8px 0; font-size: 14px; }
+  .msg.ok { background: #e6f4ea; color: #1e4620; }
+  .msg.err { background: #fdecea; color: #611a15; }
+  #authGate { position: fixed; inset: 0; background: linear-gradient(180deg, var(--whisky-dark), var(--whisky)); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  #authGate.hidden { display: none; }
+  .authBox { max-width: 360px; width: 100%; background: var(--paper); border-radius: 16px; padding: 24px 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.25); }
+  .authBox h2 { font-size: 19px; margin: 0 0 4px; color: var(--whisky-dark); text-align: center; }
+  .authBox .muted { text-align: center; margin-bottom: 14px; }
+  .adminListRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .adminListRow:last-child { border-bottom: none; }
+  .adminListRow .name { font-size: 14px; }
+  .adminListRow button { margin-top: 0; padding: 6px 12px; font-size: 13px; width: auto; }
+
+  @media (max-width: 480px) {
+    body { padding: 10px 8px 28px; font-size: 15px; }
+    label { display: block; }
+  }
+</style>
+</head>
+<body>
+
+<div id="authGate">
+  <div class="authBox">
+    <h2>スタッフパスコード</h2>
+    <p class="muted">この先は店舗スタッフ専用です。パスコードを入力してください。</p>
+    <input type="password" id="authPasscode" placeholder="パスコード">
+    <button type="button" id="authButton" class="primary">開く</button>
+    <div id="authMsg"></div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+
+<h1>焼酎おすすめ提示ツール</h1>
+<div class="syncBar">
+  <span id="syncStatus">同期状況を確認中...</span>
+  <button type="button" id="syncButton" class="secondary" style="padding:4px 10px;font-size:12px;">今すぐ同期</button>
+  <button type="button" id="logoutButton" class="secondary" style="padding:4px 10px;font-size:12px;">ログアウト</button>
+</div>
+
+<div class="tabBar">
+  <button type="button" class="tabBtn active" data-tab="recommend">レコメンド</button>
+  <button type="button" class="tabBtn" data-tab="list">一覧</button>
+  <button type="button" class="tabBtn" data-tab="admin">管理</button>
+</div>
+
+<section id="tab-recommend" class="tabPanel active">
+  <form id="criteriaForm">
+    <fieldset>
+      <legend>フリーワード検索（任意）</legend>
+      <input type="text" id="recommendFreeText" placeholder="商品名・原料・産地・麹で検索">
+    </fieldset>
+
+    <fieldset>
+      <legend>価格帯</legend>
+      <div id="priceFields"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>原料 <span class="muted">（タップすると説明が見られます）</span></legend>
+      <div id="materialFields"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>味わい <span class="muted">（タグをタップすると説明が見られます）</span></legend>
+      <div id="flavorFields"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>飲み方</legend>
+      <div id="servingStyleFields"></div>
+    </fieldset>
+
+    <button type="button" id="searchButton" class="primary">この条件で探す</button>
+    <button type="button" id="clearCriteriaButton" class="secondary" style="width:100%;margin-top:8px;">条件をクリア</button>
+  </form>
+
+  <div id="results"></div>
+</section>
+
+<section id="tab-list" class="tabPanel">
+  <input type="text" id="listSearch" placeholder="商品名・原料・産地・麹で検索">
+  <div id="listResults"></div>
+</section>
+
+<section id="tab-admin" class="tabPanel">
+  <div id="adminGate">
+    <p class="muted">取り扱い終了・再開の操作には、閲覧用とは別の管理パスコードが必要です。</p>
+    <input type="password" id="adminPasscode" placeholder="管理パスコード">
+    <button type="button" id="adminUnlockButton" class="secondary">管理画面を開く</button>
+  </div>
+
+  <div id="adminBody">
+    <div id="adminMsg"></div>
+
+    <fieldset>
+      <legend>取り扱い終了にする</legend>
+      <div id="admActiveList"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>取り扱いを再開する</legend>
+      <div id="admDiscontinuedList"></div>
+    </fieldset>
+  </div>
+</section>
+
+<div id="detailOverlay" class="overlay hidden">
+  <div class="sheet">
+    <div id="detailContent"></div>
+    <button type="button" id="detailCloseButton" class="secondary closeBtn">閉じる</button>
+  </div>
+</div>
+
+<div id="glossaryOverlay" class="overlay hidden">
+  <div class="sheet">
+    <div id="glossaryContent"></div>
+    <button type="button" id="glossaryCloseButton" class="secondary closeBtn">閉じる</button>
+  </div>
+</div>
+
+</div>
+
+<script>
+// 酒部門/焼酎/scoring.js
+// 選択肢の定義とマッチングロジック（純粋関数）。
+// build.js でこのファイルの中身がそのまま index.html に埋め込まれるため、
+// ブラウザ・Node.js のどちらでも動く形（ファイル末尾のエクスポート文のみ Node 依存）にしてある。
+
+const PRICE_BANDS = [
+  { id: 'under1000', label: '〜1,000円', min: 0, max: 1000 },
+  { id: '1000to1500', label: '1,000〜1,500円', min: 1000, max: 1500 },
+  { id: '1500to2000', label: '1,500〜2,000円', min: 1500, max: 2000 },
+  { id: 'over2000', label: '2,000円〜', min: 2000, max: Infinity },
+];
+
+const MATERIALS = ['芋', '麦', '米', '黒糖', 'その他'];
+
+const FLAVOR_TAGS = ['すっきり・軽快', '華やか・フルーティー', '甘い香り', 'コク・濃厚', '香ばしい', '熟成・樽香'];
+
+const SERVING_STYLE_TAGS = ['ロック', '水割り', 'お湯割り', 'ソーダ割り', 'ストレート'];
+
+function priceBandsForProduct(price) {
+  if (price === null || price === undefined) return [];
+  return PRICE_BANDS.filter((b) => price >= b.min && price < b.max).map((b) => b.id);
+}
+
+function scoreProduct(product, criteria) {
+  let totalCriteria = 0;
+  let matchedCount = 0;
+  const breakdown = {};
+
+  if (criteria.priceBandIds && criteria.priceBandIds.length > 0) {
+    // 価格条件が指定されている場合は常にtotalCriteriaに数える。価格不明の商品は「不一致」として扱う
+    // （ウイスキー版で、価格不明を除外していたため不当に高スコアになっていた問題の修正をそのまま引き継いでいる）。
+    totalCriteria++;
+    if (product.price !== null && product.price !== undefined) {
+      const matched = priceBandsForProduct(product.price).some((id) => criteria.priceBandIds.includes(id));
+      if (matched) matchedCount++;
+      breakdown.price = matched;
+    } else {
+      breakdown.price = null; // 表示側で「価格不明」と「価格条件外」を区別できるようnullのまま
+    }
+  }
+
+  if (criteria.materials && criteria.materials.length > 0) {
+    totalCriteria++;
+    const matched = product.material != null && criteria.materials.includes(product.material);
+    if (matched) matchedCount++;
+    breakdown.material = matched;
+  }
+
+  if (criteria.flavors && criteria.flavors.length > 0) {
+    totalCriteria++;
+    const matched = (product.flavors || []).some((f) => criteria.flavors.includes(f));
+    if (matched) matchedCount++;
+    breakdown.flavors = matched;
+  }
+
+  if (criteria.servingStyles && criteria.servingStyles.length > 0) {
+    totalCriteria++;
+    const matched = (product.servingStyles || []).some((s) => criteria.servingStyles.includes(s));
+    if (matched) matchedCount++;
+    breakdown.servingStyles = matched;
+  }
+
+  const score = totalCriteria === 0 ? 0 : matchedCount / totalCriteria;
+  return { score, matchedCount, totalCriteria, breakdown };
+}
+
+// 商品名・原料の詳細・産地（県）・麹を対象にした部分一致検索（一覧タブ・レコメンドタブ共通）
+function matchesFreeText(product, text) {
+  if (!text) return true;
+  return [product.name, product.materialDetail, product.prefecture, product.koji]
+    .filter(Boolean).some((v) => v.includes(text));
+}
+
+// 条件が1つも指定されていない場合、全商品がスコア0で同着になり実質無作為順になってしまうため、
+// UI層に頼らずロジック層でも空配列を返すようにする（呼び出し元がUIのガードを経由しない場合の安全策）。
+function hasAnyCriteria(criteria) {
+  return !!(
+    (criteria.freeText && criteria.freeText.trim())
+    || (criteria.priceBandIds && criteria.priceBandIds.length)
+    || (criteria.materials && criteria.materials.length)
+    || (criteria.flavors && criteria.flavors.length)
+    || (criteria.servingStyles && criteria.servingStyles.length)
+  );
+}
+
+function rankProducts(products, criteria, topN) {
+  if (!hasAnyCriteria(criteria)) return [];
+  const active = products.filter((p) => p.status !== 'discontinued' && matchesFreeText(p, criteria.freeText));
+  const scored = active.map((p) => ({ product: p, ...scoreProduct(p, criteria) }));
+  scored.sort((a, b) => b.score - a.score || b.matchedCount - a.matchedCount);
+  return scored.slice(0, topN);
+}
+
+
+</script>
+<script>
+const SEED_PRODUCTS = [
+  {
+    "code": "SAMPLE-001",
+    "name": "（サンプル）芋焼酎 黒麹仕込み",
+    "spec": "900ml",
+    "price": 1280,
+    "material": "芋",
+    "materialDetail": "さつま芋（黄金千貫）・米麹",
+    "prefecture": "鹿児島県",
+    "koji": "黒麹",
+    "abv": 25,
+    "flavors": ["甘い香り", "コク・濃厚"],
+    "servingStyles": ["お湯割り", "ロック"],
+    "highlight": "黒麹らしいしっかりしたコクと、焼き芋のような甘い香りが楽しめる芋焼酎です。お湯割りで香りが一段と広がります。",
+    "highlightConfidence": "high",
+    "highlightSource": null,
+    "attributeConfidence": "high",
+    "attributeSource": null,
+    "status": "active"
+  },
+  {
+    "code": "SAMPLE-002",
+    "name": "（サンプル）麦焼酎 減圧蒸留",
+    "spec": "720ml",
+    "price": 980,
+    "material": "麦",
+    "materialDetail": "大麦・大麦麹",
+    "prefecture": "大分県",
+    "koji": "白麹",
+    "abv": 25,
+    "flavors": ["すっきり・軽快"],
+    "servingStyles": ["ソーダ割り", "水割り"],
+    "highlight": "クセが少なく軽やかな飲み口の麦焼酎です。焼酎に慣れていない方にもすすめやすく、ソーダ割りがよく合います。",
+    "highlightConfidence": "high",
+    "highlightSource": null,
+    "attributeConfidence": "high",
+    "attributeSource": null,
+    "status": "active"
+  },
+  {
+    "code": "SAMPLE-003",
+    "name": "（サンプル）米焼酎 樽貯蔵",
+    "spec": "720ml",
+    "price": 2480,
+    "material": "米",
+    "materialDetail": "米・米麹",
+    "prefecture": "熊本県",
+    "koji": "白麹",
+    "abv": 35,
+    "flavors": ["熟成・樽香", "甘い香り"],
+    "servingStyles": ["ロック", "ストレート"],
+    "highlight": "樽で寝かせたことで、バニラのような香りとまろやかさが加わった米焼酎です。ロックでゆっくり味わうのがおすすめです。",
+    "highlightConfidence": "medium",
+    "highlightSource": null,
+    "attributeConfidence": "high",
+    "attributeSource": null,
+    "status": "active"
+  }
+]
+;
+
+// ここにGoogle Apps ScriptのWebアプリURLを設定すると、スタッフパスコードでの同期・
+// 管理タブでの取り扱い終了/再開が有効になる。
+// 未設定の間は開発確認用として、パスコード入力後にSEED_PRODUCTS（非機密のプレースホルダー）
+// を表示する（実データではないので公開ホスティングしても問題ない）。
+// 設定後は build.js を再実行して index.html を作り直すこと。
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwZrE6BWHDTI4rJiSPqyKQzmFb-LywLqBjZiQxVSo8ZpG1WSlc1KkfUk0oYTxhAvaq8DA/exec';
+
+const STORAGE_KEY = 'shochuToolCache_v1';
+const STAFF_PASSCODE_KEY = 'shochuToolStaffPasscode_v1';
+
+// タグ用語集（1タグにつき1つの固定定義。焼酎に詳しい人が読んでも納得できる説明を優先している）
+const FLAVOR_GLOSSARY = {
+  'すっきり・軽快': 'クセや雑味が少なく、軽やかな飲み口のタイプ。蒸留時に気圧を下げて低い温度で蒸留する「減圧蒸留」の麦焼酎・米焼酎に多く、焼酎に慣れていない方にもすすめやすいです。',
+  '華やか・フルーティー': '柑橘・ライチ・マスカットなど、果物や花を思わせる香りのタイプ。黄麹や低温でじっくり発酵させる造り、香りの高い芋の品種（ジョイホワイトなど）で出やすい特徴です。',
+  '甘い香り': '焼き芋・栗・はちみつのような、ふくよかで甘い香りのタイプ。紅芋・安納芋・紅はるかなどを使った芋焼酎や、黒糖焼酎に多いです。焼酎（本格焼酎）に糖分は含まれず、甘さは香りと口当たりで感じるものです。',
+  'コク・濃厚': '原料の旨味や飲みごたえがしっかり感じられるタイプ。黒麹仕込み、常圧蒸留（通常の気圧で蒸留する昔ながらの方法）、度数の高い原酒、にごり（無濾過）などに多いです。',
+  '香ばしい': '焙煎した麦や穀物、ナッツのような香ばしい香りのタイプ。常圧蒸留の麦焼酎や、焼き芋を原料にした芋焼酎などに見られます。',
+  '熟成・樽香': '樽で貯蔵したり長期間寝かせたりすることで生まれる、バニラ・カラメルのような香りや、角の取れたまろやかさ。ロックやストレートでゆっくり味わうのに向きます。',
+};
+
+const MATERIAL_GLOSSARY = {
+  '芋': 'さつま芋を主原料にした焼酎。鹿児島県・宮崎県が主な産地です。芋の品種（黄金千貫・紅はるか・紫芋など）や麹の違いで、甘い香りのものからすっきりしたものまで幅があります。お湯割りにすると香りが立ちます。',
+  '麦': '大麦を主原料にした焼酎。大分県や長崎県の壱岐などが主な産地です。すっきり軽やかなものから、麦を焙煎したような香ばしいものまであり、水割りやソーダ割りにも合わせやすいです。',
+  '米': '米を主原料にした焼酎。熊本県人吉・球磨地方の「球磨焼酎」（産地名を名乗れる地理的表示に指定）が代表的です。米由来のやわらかな甘みと香りが特徴です。',
+  '黒糖': '黒糖と米麹で造る焼酎で、鹿児島県の奄美群島でのみ製造が認められています。ほのかに甘い香りと、まろやかな口当たりが特徴です。',
+  'その他': '芋・麦・米・黒糖以外を主原料にした焼酎。酒粕を蒸留した「粕取り焼酎」、緑茶を使った焼酎、ごま・そば・栗・しそなどがあり、それぞれ個性的な香りが楽しめます。',
+};
+
+let PRODUCTS = [];
+// 管理パスコードで認証できた場合にのみ入る、取扱終了品の配列（PRODUCTSには混ぜない）
+let ADMIN_DISCONTINUED = [];
+
+function loadCache() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed.products || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveCache(products) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ products, syncedAt: Date.now() }));
+  } catch (e) {
+    // 保存できなくても動作は継続する
+  }
+}
+
+function getLastSyncedAt() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw).syncedAt || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function formatSyncedAt(ts) {
+  if (!ts) return '未同期';
+  const d = new Date(ts);
+  return '最終同期: ' + d.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function updateSyncStatus() {
+  document.getElementById('syncStatus').textContent = formatSyncedAt(getLastSyncedAt());
+}
+
+// スタッフパスコードを添えてApps Scriptから最新データを取得する。
+// adminPasscodeを渡すと、それが管理パスコードと一致した場合のみ取扱終了品(ADMIN_DISCONTINUED)も取得する。
+// 戻り値: { ok, reason } reasonは 'network'（通信不可）/ 'invalid'（スタッフパスコード誤り）/
+//        'admin_invalid'（管理パスコード誤り）/ 'not_configured'
+async function syncFromServer(passcode, silent, adminPasscode) {
+  if (!APPS_SCRIPT_URL) {
+    return { ok: false, reason: 'not_configured' };
+  }
+  try {
+    const body = { action: 'sync', passcode };
+    if (adminPasscode) body.adminPasscode = adminPasscode;
+    const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(body) });
+    const data = await res.json();
+    if (data.error === 'passcode_invalid') {
+      return { ok: false, reason: 'invalid' };
+    }
+    if (!data.products) throw new Error('invalid_response');
+    PRODUCTS = data.products;
+    saveCache(PRODUCTS);
+    updateSyncStatus();
+    renderListResults();
+    if (adminPasscode) {
+      if (!data.discontinuedProducts) {
+        return { ok: false, reason: 'admin_invalid' };
+      }
+      ADMIN_DISCONTINUED = data.discontinuedProducts;
+    }
+    populateAdminLists();
+    return { ok: true };
+  } catch (e) {
+    if (!silent) alert('同期に失敗しました。通信環境をご確認ください。');
+    return { ok: false, reason: 'network' };
+  }
+}
+
+document.getElementById('syncButton').addEventListener('click', async () => {
+  const passcode = localStorage.getItem(STAFF_PASSCODE_KEY) || '';
+  await syncFromServer(passcode, false);
+});
+
+document.getElementById('logoutButton').addEventListener('click', () => {
+  if (!confirm('ログアウトしますか？この端末に保存されているパスコードを消去します。')) return;
+  localStorage.removeItem(STAFF_PASSCODE_KEY);
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+});
+
+// ---------- 起動時認証ゲート ----------
+
+function showAuthError(text) {
+  document.getElementById('authMsg').innerHTML = `<div class="msg err">${text}</div>`;
+}
+
+function enterApp() {
+  document.getElementById('authGate').classList.add('hidden');
+  document.getElementById('appRoot').style.display = 'block';
+  startApp();
+}
+
+async function tryStaffLogin(passcode, silent) {
+  if (!APPS_SCRIPT_URL) {
+    // Apps Script未設定時の開発確認用フォールバック（非機密のプレースホルダーデータのみ使用）
+    PRODUCTS = loadCache() || SEED_PRODUCTS;
+    localStorage.setItem(STAFF_PASSCODE_KEY, passcode);
+    return true;
+  }
+  const result = await syncFromServer(passcode, true);
+  if (result.ok) {
+    localStorage.setItem(STAFF_PASSCODE_KEY, passcode);
+    return true;
+  }
+  if (result.reason === 'network') {
+    // オフライン時は、直近まで認証済みだった端末ならキャッシュで継続動作させる
+    const cached = loadCache();
+    if (cached && localStorage.getItem(STAFF_PASSCODE_KEY)) {
+      PRODUCTS = cached;
+      return true;
+    }
+    if (!silent) showAuthError('通信環境をご確認ください（初回はオンラインでの認証が必要です）。');
+    return false;
+  }
+  if (!silent) showAuthError('パスコードが正しくありません。');
+  localStorage.removeItem(STAFF_PASSCODE_KEY);
+  return false;
+}
+
+document.getElementById('authButton').addEventListener('click', async () => {
+  const passcode = document.getElementById('authPasscode').value;
+  if (!passcode) { showAuthError('パスコードを入力してください'); return; }
+  const ok = await tryStaffLogin(passcode, false);
+  if (ok) enterApp();
+});
+
+async function initAuth() {
+  const storedPasscode = localStorage.getItem(STAFF_PASSCODE_KEY);
+  if (storedPasscode) {
+    const ok = await tryStaffLogin(storedPasscode, true);
+    if (ok) { enterApp(); return; }
+  }
+  // ゲート画面のまま入力待ち
+}
+
+// ---------- 用語集ポップアップ ----------
+
+function openGlossary(term) {
+  const def = FLAVOR_GLOSSARY[term] || MATERIAL_GLOSSARY[term];
+  if (!def) return;
+  document.getElementById('glossaryContent').innerHTML = `<h2>${escapeHtml(term)}</h2><p>${def}</p>`;
+  document.getElementById('glossaryOverlay').classList.remove('hidden');
+}
+
+document.getElementById('glossaryCloseButton').addEventListener('click', () => {
+  document.getElementById('glossaryOverlay').classList.add('hidden');
+});
+
+function glossaryTagHtml(term, extraClass) {
+  const hasGlossary = FLAVOR_GLOSSARY[term] || MATERIAL_GLOSSARY[term];
+  const cls = 'tag' + (hasGlossary ? ' glossary' : '') + (extraClass ? ' ' + extraClass : '');
+  const safeTerm = escapeHtml(term);
+  return `<span class="${cls}" data-term="${safeTerm}">${safeTerm}${hasGlossary ? ' ⓘ' : ''}</span>`;
+}
+
+// タグクリックで用語集を開く（イベント委譲。結果カード・フォーム双方に対応）
+document.body.addEventListener('click', (e) => {
+  const tagEl = e.target.closest('.tag.glossary');
+  if (tagEl) {
+    openGlossary(tagEl.getAttribute('data-term'));
+  }
+});
+
+// ---------- レコメンドタブ ----------
+
+function renderCheckboxGroup(containerId, name, values, withGlossary) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = values.map((v) => {
+    const info = withGlossary && (FLAVOR_GLOSSARY[v] || MATERIAL_GLOSSARY[v])
+      ? ` <span class="tag glossary" data-term="${v}" style="padding:1px 6px;">ⓘ</span>` : '';
+    return `<label><input type="checkbox" name="${name}" value="${v}">${v}${info}</label>`;
+  }).join('');
+}
+
+function initForm() {
+  renderCheckboxGroup('priceFields', 'price', PRICE_BANDS.map((b) => b.label));
+  renderCheckboxGroup('materialFields', 'material', MATERIALS, true);
+  renderCheckboxGroup('flavorFields', 'flavor', FLAVOR_TAGS, true);
+  renderCheckboxGroup('servingStyleFields', 'servingStyle', SERVING_STYLE_TAGS);
+}
+
+function getCheckedValues(name) {
+  return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map((el) => el.value);
+}
+
+function priceLabelsToBandIds(labels) {
+  return PRICE_BANDS.filter((b) => labels.includes(b.label)).map((b) => b.id);
+}
+
+// スプレッドシート由来の文字列をHTMLに埋め込む前にエスケープする（XSS対策）。
+// 数値（price等）はエスケープ不要。
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// 例: 1,280円（720ml） ／ 芋（さつま芋（黄金千貫）・米麹） ／ 鹿児島県 ／ 黒麹 ／ 25度
+// 値がない項目は省く
+function metaLineHtml(p) {
+  const price = p.price === null || p.price === undefined ? '価格不明' : p.price.toLocaleString() + '円';
+  const parts = [price + (p.spec ? '（' + escapeHtml(p.spec) + '）' : '')];
+  if (p.material) parts.push(escapeHtml(p.material) + (p.materialDetail ? '（' + escapeHtml(p.materialDetail) + '）' : ''));
+  if (p.prefecture) parts.push(escapeHtml(p.prefecture));
+  if (p.koji) parts.push(escapeHtml(p.koji));
+  if (typeof p.abv === 'number') parts.push(p.abv + '度');
+  return `<div class="meta">${parts.join(' ／ ')}</div>`;
+}
+
+// 画像はアプリと同じ場所の img/ に置いたファイルを使う（外部サイトには接続しない）。
+// スプレッドシートの imageUrl 列には "img/xxxxxxxxxxxxxxxx.webp" の形式で入れる。読み込み失敗時は画像を消す。
+function thumbHtml(p) {
+  if (typeof p.imageUrl !== 'string' || !/^img\/[0-9a-f]{16}\.webp$/.test(p.imageUrl)) return '';
+  return `<img class="thumb" src="${p.imageUrl}" alt="" loading="lazy" onerror="this.remove()">`;
+}
+
+// 確証度が high 以外（未設定含む）なら警告する
+function confidenceCaution(p) {
+  const lowConfidence = p.attributeConfidence !== 'high' || p.highlightConfidence !== 'high';
+  return lowConfidence
+    ? `<div class="caution">⚠ 情報の確証度が低めです。商品コード <span class="code">${escapeHtml(p.code)}</span> で現物のラベルをご確認ください</div>`
+    : '';
+}
+
+function renderResultCard(entry) {
+  const p = entry.product;
+  // フリーワードだけで検索した場合は一致度を計算する条件がなく、全件「0%」と出て誤解を招くため表示しない
+  const scoreBadge = entry.totalCriteria > 0 ? `<span class="score">一致度 ${Math.round(entry.score * 100)}%</span>` : '';
+  const highlight = p.highlight ? `<div class="highlight">${escapeHtml(p.highlight)}</div>` : '';
+  return `
+    <div class="card">
+      ${thumbHtml(p)}
+      <h3>${escapeHtml(p.name)}${scoreBadge}</h3>
+      ${metaLineHtml(p)}
+      <div>${(p.flavors || []).map((f) => glossaryTagHtml(f)).join('')}</div>
+      <div>${(p.servingStyles || []).map((s) => glossaryTagHtml(s)).join('')}</div>
+      ${highlight}
+      ${confidenceCaution(p)}
+      <div class="code" style="margin-top:6px;">コード: ${escapeHtml(p.code)}</div>
+    </div>
+  `;
+}
+
+document.getElementById('searchButton').addEventListener('click', () => {
+  const criteria = {
+    freeText: document.getElementById('recommendFreeText').value.trim(),
+    priceBandIds: priceLabelsToBandIds(getCheckedValues('price')),
+    materials: getCheckedValues('material'),
+    flavors: getCheckedValues('flavor'),
+    servingStyles: getCheckedValues('servingStyle'),
+  };
+  if (!hasAnyCriteria(criteria)) {
+    document.getElementById('results').innerHTML = '<p class="muted">絞り込み条件を1つ以上選んでください。</p>';
+    return;
+  }
+  const ranked = rankProducts(PRODUCTS, criteria, 20);
+  document.getElementById('results').innerHTML = ranked.length > 0
+    ? ranked.map(renderResultCard).join('')
+    : '<p class="muted">条件に合う商品が見つかりませんでした。条件を減らしてお試しください。</p>';
+});
+
+document.getElementById('clearCriteriaButton').addEventListener('click', () => {
+  document.getElementById('criteriaForm').querySelectorAll('input[type="checkbox"]').forEach((el) => { el.checked = false; });
+  document.getElementById('recommendFreeText').value = '';
+  document.getElementById('results').innerHTML = '';
+});
+
+// ---------- 一覧タブ ----------
+
+function renderListCard(p) {
+  return `
+    <div class="card" data-code="${escapeHtml(p.code)}">
+      ${thumbHtml(p)}
+      <h3>${escapeHtml(p.name)}</h3>
+      ${metaLineHtml(p)}
+      <div>${(p.flavors || []).map((f) => `<span class="tag">${escapeHtml(f)}</span>`).join('')}</div>
+      <div class="code" style="margin-top:6px;">コード: ${escapeHtml(p.code)}</div>
+    </div>
+  `;
+}
+
+function renderListResults() {
+  const q = (document.getElementById('listSearch').value || '').trim();
+  const active = PRODUCTS.filter((p) => p.status !== 'discontinued');
+  const filtered = active.filter((p) => matchesFreeText(p, q));
+  const container = document.getElementById('listResults');
+  container.innerHTML = filtered.map(renderListCard).join('');
+  container.querySelectorAll('.card').forEach((card) => {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.tag')) return; // タグクリックは用語集を優先
+      openDetail(card.getAttribute('data-code'));
+    });
+  });
+}
+
+document.getElementById('listSearch').addEventListener('input', renderListResults);
+
+// ---------- 詳細オーバーレイ ----------
+
+function openDetail(code) {
+  const p = PRODUCTS.find((x) => x.code === code);
+  if (!p) return;
+  document.getElementById('detailContent').innerHTML = `
+    ${thumbHtml(p)}
+    <h2>${escapeHtml(p.name)}</h2>
+    ${metaLineHtml(p)}
+    <div>${(p.flavors || []).map((f) => glossaryTagHtml(f)).join('')}</div>
+    <div>${(p.servingStyles || []).map((s) => glossaryTagHtml(s)).join('')}</div>
+    ${p.highlight ? `<div class="highlight">${escapeHtml(p.highlight)}</div>` : ''}
+    ${p.status === 'discontinued' ? '<div class="caution">現在は取扱終了商品です</div>' : ''}
+    ${confidenceCaution(p)}
+    <div class="code" style="margin-top:8px;">商品コード: ${escapeHtml(p.code)}</div>
+  `;
+  document.getElementById('detailOverlay').classList.remove('hidden');
+}
+
+document.getElementById('detailCloseButton').addEventListener('click', () => {
+  document.getElementById('detailOverlay').classList.add('hidden');
+});
+
+// ---------- 管理タブ（取り扱い終了・再開のみ） ----------
+
+let adminPasscodeValue = '';
+
+document.getElementById('adminUnlockButton').addEventListener('click', async () => {
+  const value = document.getElementById('adminPasscode').value;
+  if (!value) {
+    alert('パスコードを入力してください');
+    return;
+  }
+  const staffPasscode = localStorage.getItem(STAFF_PASSCODE_KEY) || '';
+  const result = await syncFromServer(staffPasscode, true, value);
+  if (!result.ok) {
+    alert('パスコードが正しくありません。');
+    return;
+  }
+  adminPasscodeValue = value;
+  document.getElementById('adminBody').style.display = 'block';
+});
+
+function populateAdminLists() {
+  const active = PRODUCTS; // サーバー側で既に取扱中のみに絞り込まれている
+  const discontinued = ADMIN_DISCONTINUED; // 管理パスコードで認証済みの場合のみ入っている
+
+  document.getElementById('admActiveList').innerHTML = active.map((p) => `
+    <div class="adminListRow">
+      <span class="name">${escapeHtml(p.name)}</span>
+      <button type="button" class="secondary admDiscontinueBtn" data-code="${escapeHtml(p.code)}">取り扱い終了</button>
+    </div>
+  `).join('') || '<p class="muted">対象商品がありません</p>';
+
+  document.getElementById('admDiscontinuedList').innerHTML = discontinued.map((p) => `
+    <div class="adminListRow">
+      <span class="name">${escapeHtml(p.name)}</span>
+      <button type="button" class="secondary admReactivateBtn" data-code="${escapeHtml(p.code)}">再開する</button>
+    </div>
+  `).join('') || '<p class="muted">取り扱い終了中の商品はありません</p>';
+
+  document.querySelectorAll('.admDiscontinueBtn').forEach((btn) => {
+    btn.addEventListener('click', () => setStatus(btn.getAttribute('data-code'), 'discontinued'));
+  });
+  document.querySelectorAll('.admReactivateBtn').forEach((btn) => {
+    btn.addEventListener('click', () => setStatus(btn.getAttribute('data-code'), 'active'));
+  });
+}
+
+function showAdminMsg(text, ok) {
+  const el = document.getElementById('adminMsg');
+  el.innerHTML = `<div class="msg ${ok ? 'ok' : 'err'}">${text}</div>`;
+}
+
+async function callAppsScript(payload) {
+  if (!APPS_SCRIPT_URL) {
+    showAdminMsg('Apps ScriptのURLが未設定です。READMEを参照して設定してください。', false);
+    return false;
+  }
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ ...payload, passcode: adminPasscodeValue }),
+    });
+    const data = await res.json();
+    if (data.error === 'passcode_invalid') {
+      showAdminMsg('パスコードが正しくありません。', false);
+      return false;
+    }
+    if (data.error) {
+      showAdminMsg('エラーが発生しました: ' + data.error, false);
+      return false;
+    }
+    const staffPasscode = localStorage.getItem(STAFF_PASSCODE_KEY) || '';
+    await syncFromServer(staffPasscode, true, adminPasscodeValue || null);
+    return true;
+  } catch (e) {
+    showAdminMsg('通信エラーが発生しました。通信環境をご確認ください。', false);
+    return false;
+  }
+}
+
+async function setStatus(code, status) {
+  const success = await callAppsScript({ action: 'setStatus', code, status });
+  if (success) showAdminMsg(status === 'discontinued' ? '取り扱い終了にしました' : '取り扱いを再開しました', true);
+}
+
+// ---------- タブ切り替え ----------
+
+document.querySelectorAll('.tabBtn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tabBtn').forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('.tabPanel').forEach((p) => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.getAttribute('data-tab')).classList.add('active');
+  });
+});
+
+// ---------- アプリ本体の初期化（認証成功後に実行） ----------
+
+function startApp() {
+  initForm();
+  renderListResults();
+  updateSyncStatus();
+  populateAdminLists();
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
+initAuth();
+</script>
+</body>
+</html>
