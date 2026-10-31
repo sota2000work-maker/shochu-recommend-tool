@@ -96,6 +96,25 @@
   .adminListRow .name { font-size: 14px; }
   .adminListRow button { margin-top: 0; padding: 6px 12px; font-size: 13px; width: auto; }
 
+  .learnToc { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; }
+  .learnToc.hidden { display: none; }
+  .learnToc button { margin: 0; padding: 6px 12px; font-size: 13px; border-radius: 999px; }
+  .learnSection h2 { font-size: 17px; color: var(--whisky-dark); margin: 18px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border); scroll-margin-top: 64px; }
+  .learnItem { border: 1px solid var(--border); border-left: 4px solid var(--amber); border-radius: 12px; margin-bottom: 8px; background: var(--paper); }
+  .learnItem summary { padding: 11px 14px; font-weight: 600; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .learnItem summary::-webkit-details-marker { display: none; }
+  .learnItem summary::after { content: '＋'; color: var(--amber); font-weight: 700; flex-shrink: 0; }
+  .learnItem[open] summary::after { content: '－'; }
+  .learnBody { padding: 0 14px 12px; font-size: 14px; }
+  .learnBody p { margin: 0 0 8px; }
+  .learnTableWrap { overflow-x: auto; margin: 0 0 8px; }
+  .learnTable { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .learnTable th, .learnTable td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; vertical-align: top; }
+  .learnTable th { background: var(--cream); white-space: nowrap; }
+  .learnTable td:first-child { white-space: nowrap; font-weight: 600; }
+  .learnTalk { font-size: 14px; color: var(--whisky-dark); background: var(--amber-soft); padding: 8px 10px; border-radius: 8px; border-left: 3px solid var(--amber); }
+  .learnTalk b { font-size: 12px; }
+
   @media (max-width: 480px) {
     body { padding: 10px 8px 28px; font-size: 15px; }
     label { display: block; }
@@ -126,6 +145,7 @@
 <div class="tabBar">
   <button type="button" class="tabBtn active" data-tab="recommend">レコメンド</button>
   <button type="button" class="tabBtn" data-tab="list">一覧</button>
+  <button type="button" class="tabBtn" data-tab="learn">学ぶ</button>
   <button type="button" class="tabBtn" data-tab="admin">管理</button>
 </div>
 
@@ -166,6 +186,13 @@
 <section id="tab-list" class="tabPanel">
   <input type="text" id="listSearch" placeholder="商品名・原料・産地・麹で検索">
   <div id="listResults"></div>
+</section>
+
+<section id="tab-learn" class="tabPanel">
+  <p class="muted">接客中に説明に困りやすい基本用語をまとめました。見出しをタップすると説明が開きます。</p>
+  <input type="text" id="learnSearch" placeholder="用語・説明文を検索">
+  <div id="learnToc" class="learnToc"></div>
+  <div id="learnContent"></div>
 </section>
 
 <section id="tab-admin" class="tabPanel">
@@ -805,6 +832,182 @@ async function setStatus(code, status) {
   if (success) showAdminMsg(status === 'discontinued' ? '取り扱い終了にしました' : '取り扱いを再開しました', true);
 }
 
+// ---------- 学ぶタブ ----------
+
+// 基礎知識（1項目＝用語・説明・接客での一言。比較表がある項目のみ table を持つ）
+const LEARN_SECTIONS = [
+  {
+    title: '種類・表示',
+    items: [
+      {
+        term: '本格焼酎（旧乙類）と甲類の違い',
+        body: '焼酎は蒸留方法で2つに分かれます。単式蒸留器で蒸留するのが「単式蒸留焼酎」（旧称：乙類）で、原料の香りや旨味が残ります。このうち、定められた原料と麹を使い、添加物を加えずに造ったものが「本格焼酎」です。連続式蒸留機で蒸留を繰り返すのが「連続式蒸留焼酎」（旧称：甲類）で、クセのないすっきりした味わいになり、チューハイやサワーのベースにもよく使われます。2006年の酒税法改正で正式な名前が変わりましたが、「甲類」「乙類」の呼び方も今も使われています。両方を混ぜたものは「混和焼酎」と表示されます。',
+        table: {
+          head: ['区分', '度数', '味わい'],
+          rows: [
+            ['単式蒸留焼酎（乙類）', '45度以下', '原料の香りや旨味が豊か。芋・麦・米・黒糖など'],
+            ['連続式蒸留焼酎（甲類）', '36度未満', 'クセがなくすっきり。サワーや割り材のベースに'],
+          ],
+        },
+        talk: '本格焼酎は原料の香りがしっかり残るので、芋や麦の違いを楽しめます。',
+      },
+      {
+        term: '産地を名乗れる焼酎（地理的表示）',
+        body: '国（国税庁）が産地と製法の基準を定めた「地理的表示（GI）」の焼酎は、その基準を満たしたものだけが産地名を名乗れます。焼酎では次の5つが指定されています。',
+        table: {
+          head: ['名称', '産地・特徴', '指定'],
+          rows: [
+            ['壱岐', '長崎県壱岐市。米麹と大麦で造る麦焼酎', '1995年'],
+            ['球磨', '熊本県の人吉・球磨地方。米焼酎', '1995年'],
+            ['琉球', '沖縄県。黒麹を使った米の焼酎「泡盛」', '1995年'],
+            ['薩摩', '鹿児島県（奄美市・大島郡を除く）。芋焼酎', '2005年'],
+            ['東京島酒', '東京都の伊豆諸島。芋・麦など', '2024年'],
+          ],
+        },
+        talk: 'ラベルに「薩摩」や「球磨」とあるのは、国の基準を満たした産地の証です。',
+      },
+      {
+        term: '「古酒」表示の決まり',
+        body: '本格焼酎で「古酒」と表示できるのは、3年以上貯蔵した焼酎が全体の5割を超えるものです。泡盛はさらに厳しく、2015年からは全量が3年以上貯蔵したものだけが「古酒（クース）」と名乗れます。長く寝かせることで角が取れ、まろやかで深みのある味わいになります。',
+        talk: '古酒は3年以上寝かせた焼酎が半分以上入っているので、まろやかで落ち着いた味わいです。',
+      },
+      {
+        term: '度数の地域差（20度と25度）',
+        body: '本格焼酎は25度が一般的ですが、宮崎県では県内向けに20度の銘柄が多く、同じ銘柄でも県内向けは20度、県外向けは25度というものもあります。20度のものは25度より軽く、口当たりがやわらかいのが特長です。',
+        talk: '宮崎では20度の焼酎が日常的に飲まれていて、軽めでやわらかい飲み口です。',
+      },
+    ],
+  },
+  {
+    title: '造り方',
+    items: [
+      {
+        term: '麹の種類（黒麹・白麹・黄麹）',
+        body: '麹は、蒸した米や麦などに麹菌を繁殖させたもので、原料のでんぷんを糖に変える働きをします。焼酎では主に3種類の麹菌が使われ、どれを使うかで味わいが変わります。銘柄名に「黒」「白」「黄」とつくものは、この麹の種類を表していることが多いです。',
+        table: {
+          head: ['麹', '味わいの傾向'],
+          rows: [
+            ['黒麹', 'コクと力強さがあり、しっかりした飲みごたえ。芋焼酎や泡盛で古くから使われる'],
+            ['白麹', 'まろやかで、やさしい口当たり。黒麹から生まれた麹で、現在の焼酎で広く使われる'],
+            ['黄麹', '華やかでフルーティーな香り。日本酒と同じ麹で、温度管理が難しく扱いが繊細'],
+          ],
+        },
+        talk: '「黒」はコクがあってしっかり、「白」はまろやか、「黄」は華やかな香り、と覚えると選びやすいです。',
+      },
+      {
+        term: '常圧蒸留と減圧蒸留',
+        body: '蒸留するときの気圧の違いです。どちらの方法で蒸留したかで、香りや味わいの濃さが大きく変わります。',
+        table: {
+          head: ['方法', '内容', '味わい'],
+          rows: [
+            ['常圧蒸留', '普通の気圧で蒸留する昔ながらの方法', '原料の香りや旨味が濃く、コクがある'],
+            ['減圧蒸留', '気圧を下げ、40〜50℃ほどの低い温度で蒸留する方法', 'クセが少なく軽やかで、すっきりしている'],
+          ],
+        },
+        talk: 'すっきり飲みたい方には減圧、香りやコクを楽しみたい方には常圧のものがおすすめです。',
+      },
+      {
+        term: '原酒・無濾過',
+        body: '原酒は、蒸留したあとに水を加えずに瓶詰めした焼酎です。一般的な焼酎は水を加えて25度前後に調整しますが、原酒は40度前後と高く、香りや旨味が濃厚です。無濾過は、蒸留後のろ過を最小限にとどめ、原料由来の旨味成分（油性成分）を残したもの。寒い時期には白く濁ることがありますが、品質には問題ありません。',
+        talk: '原酒は度数が高いので、ロックや少し水を足して香りを楽しむのがおすすめです。',
+      },
+    ],
+  },
+  {
+    title: '飲み方',
+    items: [
+      {
+        term: '割り方の基本',
+        body: '焼酎は割り方で香りや飲み口が変わります。九州では焼酎6・お湯4の「ロクヨン」がお湯割りの基本と言われます。お湯割りは、お湯を先に入れてから焼酎を注ぐのがコツ。温度差で自然に混ざり、アルコールのツンとした刺激がやわらいで、香りがまろやかに立ちます。',
+        table: {
+          head: ['飲み方', 'ポイント'],
+          rows: [
+            ['お湯割り', '焼酎6：お湯4が基本。お湯を先に入れる。芋焼酎は特に香りが立つ'],
+            ['水割り', '冷やした水で割ると、食事に合わせやすい'],
+            ['ロック', '大きめの氷でゆっくり。溶けるにつれて味の変化を楽しめる'],
+            ['ソーダ割り', '炭酸が抜けないよう静かに注ぐ。すっきり系・華やか系と相性が良い'],
+          ],
+        },
+        talk: 'お湯割りはお湯を先に入れると、まろやかになりますよ。',
+      },
+      {
+        term: '前割り',
+        body: '焼酎をあらかじめ好みの濃さに水で割り、数日から1週間ほど寝かせておく飲み方です。焼酎と水がなじんで、角の取れたまろやかな口当たりになると言われます。鹿児島では、前割りした焼酎を「黒ぢょか」という酒器で温めて飲む習慣もあります。',
+        talk: '前日に水で割っておくだけでぐっとまろやかになるので、ご家庭でも手軽に試せます。',
+      },
+    ],
+  },
+  {
+    title: 'よく聞かれること',
+    items: [
+      {
+        term: '糖質ゼロ・プリン体',
+        body: '本格焼酎は蒸留酒のため、原料の糖分は蒸留の過程で残らず、糖質はゼロです。プリン体もほぼ含まれません。ただし、アルコールそのものにカロリーはあるため、「飲んでも太らない」「体に良い」という意味ではありません。お客様に聞かれたときは事実だけを伝え、健康効果をうたう言い方は避けましょう。',
+        talk: '蒸留酒なので糖質はゼロです。ただ、アルコール自体のカロリーはありますので、飲みすぎにはお気をつけください。',
+      },
+    ],
+  },
+  { title: '原料', items: glossaryItems(MATERIAL_GLOSSARY) },
+  { title: '味わいタグ', items: glossaryItems(FLAVOR_GLOSSARY) },
+];
+
+function glossaryItems(glossary) {
+  return Object.entries(glossary).map(([term, body]) => ({ term, body }));
+}
+
+function normalizeLearnText(str) {
+  return String(str).normalize('NFKC').toLowerCase();
+}
+
+function learnItemHtml(item) {
+  const table = item.table
+    ? `<div class="learnTableWrap"><table class="learnTable"><tr>${item.table.head.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr>${item.table.rows.map((r) => `<tr>${r.map((c) => `<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('')}</table></div>`
+    : '';
+  const talk = item.talk ? `<div class="learnTalk"><b>接客での一言</b><br>「${escapeHtml(item.talk)}」</div>` : '';
+  return `<details class="learnItem"><summary>${escapeHtml(item.term)}</summary><div class="learnBody"><p>${escapeHtml(item.body)}</p>${table}${talk}</div></details>`;
+}
+
+function renderLearn() {
+  document.getElementById('learnToc').innerHTML = LEARN_SECTIONS.map((s, i) =>
+    `<button type="button" class="secondary" data-learn-jump="${i}">${escapeHtml(s.title)}</button>`).join('');
+  document.getElementById('learnContent').innerHTML = LEARN_SECTIONS.map((s, i) =>
+    `<div class="learnSection" id="learnSection${i}"><h2>${escapeHtml(s.title)}</h2>${s.items.map(learnItemHtml).join('')}</div>`).join('')
+    + '<p id="learnEmpty" class="muted hidden">該当する用語がありません。</p>';
+
+  // 検索用の文字列は用語・説明・一言・表の中身をまとめて持たせる
+  const items = LEARN_SECTIONS.flatMap((s) => s.items);
+  document.querySelectorAll('#learnContent .learnItem').forEach((el, i) => {
+    const item = items[i];
+    const tableText = item.table ? item.table.head.concat(...item.table.rows).join(' ') : '';
+    el.dataset.search = normalizeLearnText([item.term, item.body, item.talk || '', tableText].join(' '));
+  });
+}
+
+function filterLearn() {
+  const q = normalizeLearnText(document.getElementById('learnSearch').value.trim());
+  let anyHit = false;
+  document.querySelectorAll('#learnContent .learnSection').forEach((sec) => {
+    let secHit = false;
+    sec.querySelectorAll('.learnItem').forEach((el) => {
+      const hit = !q || el.dataset.search.includes(q);
+      el.classList.toggle('hidden', !hit);
+      el.open = Boolean(q) && hit;
+      if (hit) secHit = true;
+    });
+    sec.classList.toggle('hidden', !secHit);
+    if (secHit) anyHit = true;
+  });
+  document.getElementById('learnEmpty').classList.toggle('hidden', anyHit);
+  document.getElementById('learnToc').classList.toggle('hidden', Boolean(q));
+}
+
+document.getElementById('learnSearch').addEventListener('input', filterLearn);
+
+document.getElementById('learnToc').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-learn-jump]');
+  if (btn) document.getElementById('learnSection' + btn.getAttribute('data-learn-jump')).scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
 // ---------- タブ切り替え ----------
 
 document.querySelectorAll('.tabBtn').forEach((btn) => {
@@ -821,6 +1024,7 @@ document.querySelectorAll('.tabBtn').forEach((btn) => {
 function startApp() {
   initForm();
   renderListResults();
+  renderLearn();
   updateSyncStatus();
   populateAdminLists();
 }
