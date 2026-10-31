@@ -3,7 +3,7 @@
 // Apps Script への同期リクエスト（他オリジン）はキャッシュ対象外で、通常通りネットワークに任せる。
 // CACHE_NAME の末尾は build.js がビルドごとに書き換える。
 
-const CACHE_NAME = 'shochu-tool-v8e77821fb5';
+const CACHE_NAME = 'shochu-tool-v562d1626ba';
 const APP_SHELL = [
   './',
   './index.html',
